@@ -1,0 +1,3 @@
+[submodule "xcomp_test_suite"]
+	path = xcomp_test_suite
+	url = https://github.com/huardti/xcomp_test_suite.git
