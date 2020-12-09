@@ -1,0 +1,26 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        cxx: [g++, clang++]
+        build-type: [Debug, Release]
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: jwlawson/actions-setup-cmake@v1.4
+
+    - run: |
+        mkdir build
+        cd build
+        CXX=${{ matrix.cxx }} cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} ..
+        make
+        ctest
