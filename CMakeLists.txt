@@ -115,3 +115,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 add_subdirectory(preprocessor)
 add_subdirectory(xcomp)
+
+# Unit tests
+add_subdirectory(3rd_party/google-test)
+find_package(GTest REQUIRED)
+
+# Enable CTest testing
+enable_testing()
+
+# Add testing executables
+add_subdirectory(tests)
