@@ -5,9 +5,9 @@ C/C++ compiler targeting linux os with amd64 architecture.
 
 ## Build status
 
-Main | Develop
------- | -------
-![Main](https://github.com/huardti/xcomp/workflows/Main/badge.svg?branch=main) | ![Develop](https://github.com/huardti/xcomp/workflows/Develop/badge.svg?branch=develop)
+Develop
+-------
+![Build](https://github.com/huardti/xcomp/workflows/Build/badge.svg?branch=develop)
 
 ## Getting started
 
