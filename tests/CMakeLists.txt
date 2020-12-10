@@ -46,4 +46,5 @@ function(package_add_test TESTNAME)
 endfunction()
 
 add_subdirectory(preprocessor)
+add_subdirectory(tools)
 add_subdirectory(xcomp)
