@@ -23,3 +23,5 @@ jobs:
         CXX=${{ matrix.cxx }} cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} ..
         make
         ctest
+        gcov -b $(find ./tests/ -name "*.o")
+        bash <(curl -s https://codecov.io/bash)

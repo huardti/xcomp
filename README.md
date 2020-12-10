@@ -5,9 +5,8 @@ C/C++ compiler targeting linux os with amd64 architecture.
 
 ## Build status
 
-Develop
--------
 ![Build](https://github.com/huardti/xcomp/workflows/Build/badge.svg?branch=develop)
+[![codecov](https://codecov.io/gh/huardti/xcomp/branch/develop/graph/badge.svg?token=8HWZIDVIQZ)](https://codecov.io/gh/huardti/xcomp)
 
 ## Getting started
 
