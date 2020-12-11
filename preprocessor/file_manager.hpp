@@ -4,16 +4,22 @@
 #include <vector>
 #include <string>
 
-class file
+class File
 {
 public:
-    file(const char * file_path);
-    void read();
+    File();
+    File(const char * file_path);
+    File(const File &) = default;
+    File &operator=(File &&) = default;
+    File &operator=(const File &) = default;
+
+    bool read();
+    bool write();
     void print();
 
     std::string get_file_descriptor() { return static_cast <std::string> (m_fd); }
 
-    std::vector<std::string> source;
+    std::string source;
 private:
     const char * m_fd;
 };

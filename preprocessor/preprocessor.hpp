@@ -1,43 +1,45 @@
 #ifndef _PREPROCESSOR_HPP_
 #define _PREPROCESSOR_HPP_
-#include <string>
-#include <vector>
-#include <map>
-#include "reader.hpp"
 
-typedef struct def {
-    std::string s;
-    size_t line;
-}def;
+#include "lexer.hpp"
+#include "file_manager.hpp"
 
-class preprocessor {
+class Preprocessor
+{
 public:
-    preprocessor(file f);
+    enum class State {
+        Base,
+        Slash,
+            Line_comment,
+            C_comment_start,
+            C_comment_find_asterisk,
+        hash,
+            Define,
+            If,
+            Line,
+
+
+
+    };
+
+    Preprocessor(File source);
+    Preprocessor(File source, File &out);
 
     void run();
+
+protected:
+    File m_in;
+    File m_out;
+    State m_state;
+
+    size_t m_line;
+    std::string m_file_name;
+
 private:
-    std::vector<std::string> m_in;
-    std::vector<std::string> m_out;
+    State next_state(Token t);
+    std::string out(Token token);
 
-    std::map<std::string, def> m_define;
+
+
 };
-
-#endif // !_PREPROCESSOR_HPP_
-
-
-
-/*
-#include <fstream>
-#include <iostream>
-#include <sstream> //std::stringstream
-int main() {
-    std::ifstream inFile;
-    inFile.open("inFileName"); //open the input file
-
-    std::stringstream strStream;
-    strStream << inFile.rdbuf(); //read the file
-    std::string str = strStream.str(); //str holds the content of the file
-
-    std::cout << str << "\n"; //you can do anything with the string!!!
-}
-*/
+#endif // !_PREPROCESSOR_HPP_ 
