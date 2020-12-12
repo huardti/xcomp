@@ -238,14 +238,3 @@ std::ostream &operator<<(std::ostream &os, const Token::Type &kind) {
     };
     return os << names[static_cast<int>(kind)];
 }
-
-int main() {
-    auto code = " if  #    salut\t\n"
-                "// salut\n"
-                "/* salut */";
-
-    Lexer lex(code);
-    for (auto token = lex.next(); not token.is_one_of(Token::Type::End, Token::Type::Unexpected); token = lex.next()) {
-        std::cout << token.type() << " " << token.lex() << "|\n";
-    }
-}
