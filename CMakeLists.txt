@@ -27,13 +27,119 @@ if(CMAKE_BUILD_TYPE STREQUAL Release)
     )
 endif()
 
+# Warning setup
 if(CMAKE_COMPILER_IS_GNUCXX)
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+        message(FATAL_ERROR "Require gcc 5.0.0 or newer.")
+    endif()
+
     set(W
-        ${W}
+        -pedantic
         -Wall
         -Wextra
-        -pedantic
+
+        -Wcast-align
+        -Wcast-qual
+        -Wconditionally-supported
+        -Wconversion
+        -Wdate-time
+        -Wdisabled-optimization
+        -Wdouble-promotion
+        -Wfloat-equal
+        -Wformat-security
+        -Wformat-signedness
+        -Wformat=2
+        -Winit-self
+        -Winline
+        -Winvalid-pch
+        -Wlogical-op
+        -Wmissing-declarations
+        -Wmissing-include-dirs
+        -Wmismatched-tags
+        -Wnoexcept
+        -Wnon-virtual-dtor
+        -Wold-style-cast
+        -Woverloaded-virtual
+        -Wpacked
+        -Wpointer-arith
+        -Wredundant-decls
+        -Wshadow
+        -Wstrict-null-sentinel
+        -Wswitch-default
+        -Wswitch-enum
+        -Wtrampolines
+        -Wundef
+        -Wunreachable-code
+        -Wunused-macros
+        -Wuseless-cast
+        -Wvector-operation-performance
+        -Wvla
+        -Wwrite-strings
+        -Wzero-as-null-pointer-constant
+
+        -Wsuggest-attribute=const
+        -Wsuggest-attribute=noreturn
+        -Wsuggest-attribute=pure
+        -Wsuggest-final-methods
+        -Wsuggest-final-types
+        -Wsuggest-override
     )
+
+    set(RUNTIME_CHECKS
+        -fsanitize=address
+        -fsanitize=float-cast-overflow
+        -fsanitize=float-divide-by-zero
+        -fsanitize=leak
+        -fsanitize=undefined
+        -fno-omit-frame-pointer
+        -fno-optimize-sibling-calls
+    )
+
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6)
+        set(W
+            ${W}
+            -Wduplicated-cond
+            -Wnull-dereference
+        )
+    endif()
+
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7)
+        set(W
+            ${W}
+            -Waligned-new
+            -Walloc-zero
+            -Walloca
+            -Wduplicated-branches
+            -Wformat-overflow=2
+        )
+    endif()
+
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8)
+        set(W
+            ${W}
+            -Wcast-align=strict
+            -Wclass-memaccess
+            -Wmultistatement-macros
+
+            -fdiagnostics-show-template-tree
+            -fno-elide-type
+        )
+        set(RUNTIME_CHECKS
+            ${RUNTIME_CHECKS}
+            -fsanitize=pointer-compare
+            -fsanitize=pointer-subtract
+        )
+    endif()
+
+    # No new warning for gcc 9
+
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10)
+        set(W
+            ${W}
+            -Warith-conversion
+        )
+    endif()
+
 elseif(MSVC)
     set(W
         ${W}
@@ -43,6 +149,7 @@ elseif(MSVC)
         /EHs
         /D_CRT_SECURE_NO_DEPRECATE
     )
+
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(W
         ${W}
@@ -62,8 +169,22 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         -Wno-documentation
         -Wno-shadow
     )
+    set(RUNTIME_CHECKS
+        -fsanitize=address
+        -fsanitize=float-cast-overflow
+        -fsanitize=float-divide-by-zero
+        -fsanitize=leak
+        -fsanitize=undefined
+        -fno-omit-frame-pointer
+        -fno-optimize-sibling-calls
+    )
 else()
     message(WARNING "Warning: your compiler has not been setup by the CMake script, do not expect it to work")
+endif()
+
+option(FSANITIZE_FLAGS "Build with -fsanitize= flags" ON)
+if(CMAKE_BUILD_TYPE STREQUAL Release OR NOT FSANITIZE_FLAGS)
+    set(RUNTIME_CHECKS ) # Clear the flags    
 endif()
 
 # set OS preprocessor defines
