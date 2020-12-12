@@ -9,7 +9,12 @@ C/C++ compiler targeting linux os with amd64 architecture.
 [![codecov](https://codecov.io/gh/huardti/xcomp/branch/develop/graph/badge.svg?token=8HWZIDVIQZ)](https://codecov.io/gh/huardti/xcomp)
 
 ## Getting started
+### Setup git hooks
+```sh
+ln -s ../../.git-hooks/pre-commit.sh .git/hooks/pre-commit
+```
 
+### Build
 To build binaries:
 ```sh
 mkdir build
