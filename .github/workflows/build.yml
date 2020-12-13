@@ -4,20 +4,34 @@ name: Build
 on:
   pull_request:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-20.04]
         cxx: [g++, clang++]
         build-type: [Debug, Release]
         coverage: [false]
         include:
-        - cxx: g++
+        - os: ubuntu-20.04
+          cxx: g++
           build-type: Debug
           coverage: true
+        - os: windows-latest
+          cxx: clang++
+          build-type: Debug
+          coverage: false
+        - os: macos-latest
+          cxx: clang++
+          build-type: Debug
+          coverage: false
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
@@ -28,11 +42,11 @@ jobs:
         mkdir build
         cd build
         CXX=${{ matrix.cxx }} cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} ..
-        make
+        cmake --build .
         ctest
 
     - name: Coverage
       if: ${{ matrix.coverage }}
       run: |
-        gcov -b $(find ./tests/ -name "*.o")
+        cd build
         bash <(curl -s https://codecov.io/bash)
