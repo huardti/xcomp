@@ -22,6 +22,7 @@ class Token {
         Minus,
         Asterisk,
         Slash,
+        BackSlash,
         Hash,
         Dot,
         Comma,

@@ -193,6 +193,8 @@ Token Lexer::next() noexcept {
         return atom(Token::Type::Asterisk);
     case '/':
         return atom(Token::Type::Slash);
+    case '\\':
+        return atom(Token::Type::BackSlash);
     case '#':
         return atom(Token::Type::Hash);
     case '.':
@@ -233,7 +235,7 @@ Token Lexer::number() noexcept {
 std::ostream &operator<<(std::ostream &os, const Token::Type &kind) {
     static const char *const names[]{
         "Number",      "Identifier",  "LeftParen", "RightParen", "LeftSquare", "RightSquare", "LeftCurly", "RightCurly", "LessThan",   "GreaterThan",
-        "Equal",       "Plus",        "Minus",     "Asterisk",   "Slash",      "Hash",        "Dot",       "Comma",      "Colon",      "Semicolon",
+        "Equal",       "Plus",        "Minus",     "Asterisk",   "Slash",      "backslash",    "Hash",        "Dot",       "Comma",      "Colon",      "Semicolon",
         "SingleQuote", "DoubleQuote", "Comment",   "Pipe",       "End",        "Space",       "tab",       "newLine",    "Unexpected",
     };
     return os << names[static_cast<int>(kind)];
