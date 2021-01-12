@@ -30,6 +30,7 @@ function(package_add_test TESTNAME)
 
     target_compile_options(${TESTNAME}
     PRIVATE
+        ${W}
         "-Wall"
         "-fPIE"
         "--coverage"

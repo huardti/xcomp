@@ -34,6 +34,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     endif()
 
     set(W
+        ${W}
         -pedantic
         -Wall
         -Wextra
@@ -50,12 +51,11 @@ if(CMAKE_COMPILER_IS_GNUCXX)
         -Wformat-signedness
         -Wformat=2
         -Winit-self
-        -Winline
+        #-Winline
         -Winvalid-pch
         -Wlogical-op
         -Wmissing-declarations
         -Wmissing-include-dirs
-        -Wmismatched-tags
         -Wnoexcept
         -Wnon-virtual-dtor
         -Wold-style-cast
@@ -76,6 +76,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
         -Wvla
         -Wwrite-strings
         -Wzero-as-null-pointer-constant
+
+        -Wno-unused-but-set-variable
 
         -Wsuggest-attribute=const
         -Wsuggest-attribute=noreturn
@@ -157,17 +159,18 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         -Weverything
         -Wno-c++98-compat
         -Wno-c++98-compat-pedantic
-        -Wno-padded
-        -Wno-global-constructors
-        -Wno-exit-time-destructors
-        -Wno-weak-vtables
         -Wno-covered-switch-default
+        -Wno-documentation
         -Wno-documentation-unknown-command
+        -Wno-exit-time-destructors
+        -Wno-global-constructors
+        -Wno-padded
+        -Wno-shadow
+        -Wno-shadow-field
         -Wno-switch-default
         -Wno-switch-enum
-        -Wno-shadow-field
-        -Wno-documentation
-        -Wno-shadow
+        -Wno-used-but-marked-unused
+        -Wno-weak-vtables
     )
     set(RUNTIME_CHECKS
         -fsanitize=address
