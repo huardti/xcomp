@@ -2,12 +2,27 @@
 
 #include "tools/lexer.hpp"
 
-class TokenTest : public ::testing::Test {
-  protected:
-    void SetUp() override {}
+class TokenTest : public ::testing::Test {};
 
-    void TearDown() override {}
+class FakeBuffer : public std::streambuf {
+  public:
+    std::string get() { return s; }
+    int overflow(int c) override {
+        s += static_cast<char>(c);
+        return c;
+    }
+
+  private:
+    std::string s = "";
 };
+
+TEST_F(TokenTest, stream_operator) {
+    FakeBuffer fake_buffer;
+    std::ostream fake_stream(&fake_buffer);
+
+    fake_stream << Token::Type::OpOrPunctuator;
+    EXPECT_EQ(fake_buffer.get(), "OpOrPunctuator");
+}
 
 TEST_F(TokenTest, is_true) {
     Token t(Token::Type::Number);
@@ -26,22 +41,22 @@ TEST_F(TokenTest, is_one_of_true) {
 
 TEST_F(TokenTest, is_one_of_false) {
     Token t(Token::Type::Number);
-    EXPECT_FALSE(t.is_one_of(Token::Type::Space, Token::Type::Slash));
+    EXPECT_FALSE(t.is_one_of(Token::Type::Space, Token::Type::CharLitteral));
 }
 
 TEST_F(TokenTest, is_one_of_multiple) {
     Token t(Token::Type::Number);
-    EXPECT_TRUE(t.is_one_of(Token::Type::Space, Token::Type::Slash, Token::Type::Number, Token::Type::Minus));
+    EXPECT_TRUE(t.is_one_of(Token::Type::Space, Token::Type::CharLitteral, Token::Type::Number, Token::Type::OpOrPunctuator));
 }
 
 TEST_F(TokenTest, is_one_of_multiple_first) {
     Token t(Token::Type::Number);
-    EXPECT_TRUE(t.is_one_of(Token::Type::Number, Token::Type::Space, Token::Type::Slash, Token::Type::Minus));
+    EXPECT_TRUE(t.is_one_of(Token::Type::Number, Token::Type::Space, Token::Type::CharLitteral, Token::Type::OpOrPunctuator));
 }
 
 TEST_F(TokenTest, is_one_of_multiple_false) {
     Token t(Token::Type::Number);
-    EXPECT_FALSE(t.is_one_of(Token::Type::Space, Token::Type::Slash, Token::Type::Minus));
+    EXPECT_FALSE(t.is_one_of(Token::Type::Space, Token::Type::CharLitteral, Token::Type::OpOrPunctuator));
 }
 
 TEST_F(TokenTest, type) {
@@ -51,8 +66,8 @@ TEST_F(TokenTest, type) {
 
 TEST_F(TokenTest, type_setter) {
     Token t(Token::Type::Number);
-    t.type(Token::Type::Slash);
-    EXPECT_EQ(t.type(), Token::Type::Slash);
+    t.type(Token::Type::CharLitteral);
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
 }
 
 TEST_F(TokenTest, lex) {
@@ -68,209 +83,86 @@ TEST_F(TokenTest, lex_setter) {
 
 class LexerTest : public ::testing::Test {};
 
+using LexerDeathTest = LexerTest;
+
+TEST_F(LexerDeathTest, end_of_file) {
+    Lexer l("");
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+    EXPECT_DEATH(l.next(), "Unexpected end of file");
+}
+
+TEST_F(LexerDeathTest, backslash) {
+    Lexer l("\\");
+    EXPECT_DEATH(l.next(), "stray");
+}
+
+class GenerateDeathTest : public testing::TestWithParam<std::string> {};
+
+const std::vector<std::string> bad_sequence{
+    "'\\s'",          "'\\u123'",       "'\\U12345'",   "'\\$'",    "'e\n'", "'e\xff'", "R\"ccccccccccccccccc(b)a\"",
+    "R\"c\xff(b)a\"", "R\"c(b\xff)a\"", "R\"cc(b)ca\"", "R\"c(b)ce"};
+
+TEST_P(GenerateDeathTest, bad_sequence) {
+    Lexer l(GetParam());
+    EXPECT_DEATH(l.next(), "error");
+}
+
+INSTANTIATE_TEST_SUITE_P(bad_sequence, GenerateDeathTest, testing::ValuesIn(bad_sequence));
+
 TEST_F(LexerTest, next) {
     Lexer l("a");
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
 }
 
-TEST_F(LexerTest, next_end) {
-    Lexer l("");
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, next_unknown) {
+TEST_F(LexerTest, unknown) {
     Lexer l("\xf4");
     EXPECT_EQ(l.next().type(), Token::Type::Unexpected);
 }
 
-TEST_F(LexerTest, next_tab) {
+TEST_F(LexerTest, tab) {
     Lexer l("\ta");
-    EXPECT_EQ(l.next().type(), Token::Type::Tab);
+    EXPECT_EQ(l.next().type(), Token::Type::Space);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
 }
 
-TEST_F(LexerTest, next_newline) {
+TEST_F(LexerTest, newline) {
     Lexer l("a\na");
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
     EXPECT_EQ(l.next().type(), Token::Type::Newline);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
 }
 
-TEST_F(LexerTest, next_greater_than) {
-    Lexer l("4>5");
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::GreaterThan);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-}
-
-TEST_F(LexerTest, next_less_than) {
-    Lexer l("4<5");
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::LessThan);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-}
-
-TEST_F(LexerTest, next_less_equal) {
-    Lexer l("4<=5");
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::LessThan);
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-}
-
-TEST_F(LexerTest, next_plus) {
-    Lexer l("4+5");
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::Plus);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-}
-
-TEST_F(LexerTest, next_minus) {
-    Lexer l("4-5");
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::Minus);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-}
-
-TEST_F(LexerTest, next_times) {
-    Lexer l("4*5");
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::Asterisk);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-}
-
-TEST_F(LexerTest, next_div) {
-    Lexer l("4/5");
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::Slash);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-}
-
-TEST_F(LexerTest, next_or_binary) {
-    Lexer l("1|0");
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::Pipe);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-}
-
-TEST_F(LexerTest, next_include) {
+TEST_F(LexerTest, include) {
     Lexer l("#include <string>");
-    EXPECT_EQ(l.next().type(), Token::Type::Hash);
+    EXPECT_EQ(l.next().type(), Token::Type::PreprocessingOperator);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
     EXPECT_EQ(l.next().type(), Token::Type::Space);
-    EXPECT_EQ(l.next().type(), Token::Type::LessThan);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::GreaterThan);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }
 
-TEST_F(LexerTest, next_include_quotes) {
+TEST_F(LexerTest, include_quotes) {
     Lexer l("#include \"file.hpp\"");
-    EXPECT_EQ(l.next().type(), Token::Type::Hash);
+    EXPECT_EQ(l.next().type(), Token::Type::PreprocessingOperator);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
     EXPECT_EQ(l.next().type(), Token::Type::Space);
-    EXPECT_EQ(l.next().type(), Token::Type::DoubleQuote);
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Dot);
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::DoubleQuote);
+    EXPECT_EQ(l.next().type(), Token::Type::StringLitteral);
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }
 
-TEST_F(LexerTest, next_variable_declaration) {
-    Lexer l("int a;");
-
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), "int");
-    EXPECT_EQ(t.type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Space);
-    t = l.next();
-    EXPECT_EQ(t.lex(), "a");
-    EXPECT_EQ(t.type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, next_variable_affectation) {
-    Lexer l("int a=4;");
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Space);
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, next_2_variables) {
-    Lexer l("int a,b;");
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Space);
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Comma);
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, next_variable_affectation_float) {
-    Lexer l("float a=44.6;");
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Space);
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), "44");
-    EXPECT_EQ(t.type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::Dot);
-    t = l.next();
-    EXPECT_EQ(t.lex(), "6");
-    EXPECT_EQ(t.type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, next_function_prototype) {
-    Lexer l("int function();");
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Space);
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::LeftParen);
-    EXPECT_EQ(l.next().type(), Token::Type::RightParen);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, next_function_declaration) {
-    Lexer l("int function() {}");
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Space);
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::LeftParen);
-    EXPECT_EQ(l.next().type(), Token::Type::RightParen);
-    EXPECT_EQ(l.next().type(), Token::Type::Space);
-    EXPECT_EQ(l.next().type(), Token::Type::LeftCurly);
-    EXPECT_EQ(l.next().type(), Token::Type::RightCurly);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, next_array_declaration) {
+TEST_F(LexerTest, array_declaration) {
     Lexer l("int a[6];");
 
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
     EXPECT_EQ(l.next().type(), Token::Type::Space);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::LeftSquare);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::Number);
-    EXPECT_EQ(l.next().type(), Token::Type::RightSquare);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, next_label) {
-    Lexer l("a:");
-    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Colon);
 }
 
 TEST_F(LexerTest, plus_plus) {
@@ -289,154 +181,192 @@ TEST_F(LexerTest, plus_plus) {
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }
 
-TEST_F(LexerTest, double_hash) {
-    Lexer l("a##b");
+TEST_F(LexerTest, dot_dot) {
+    Lexer l("a..y");
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::DoubleHash);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), ".");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    t = l.next();
+    EXPECT_EQ(t.lex(), ".");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }
 
-TEST_F(LexerTest, CharLitteral) {
-    Lexer l("='a';");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+TEST_F(LexerTest, modulo) {
+    Lexer l("a%:%b");
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
     Token t(l.next());
+    EXPECT_EQ(t.type(), Token::Type::PreprocessingOperator);
+    t = l.next();
+    EXPECT_EQ(t.lex(), "%");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, particular_case1) {
+    Lexer l("a<:::b");
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "[");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    t = l.next();
+    EXPECT_EQ(t.lex(), "::");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, particular_case2) {
+    Lexer l("a<::>b");
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "[");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    t = l.next();
+    EXPECT_EQ(t.lex(), "]");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, particular_case3) {
+    Lexer l("a<::b");
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "<");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    t = l.next();
+    EXPECT_EQ(t.lex(), "::");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, particular_case4) {
+    Lexer l("a<:b");
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "[");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+class GenerateTest5 : public testing::TestWithParam<std::string> {};
+
+const std::vector<std::string> CharLitteral{"a", "ab", "\\n", "\\x7", "\\x41", "\\7", "\\100", "\\u0436", "\\U0001F996"};
+
+TEST_P(GenerateTest5, CharLitteral) {
+    std::string s("'" + GetParam() + "m'");
+    Lexer l(s);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), GetParam() + "m");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+INSTANTIATE_TEST_SUITE_P(CharLitteral, GenerateTest5, testing::ValuesIn(CharLitteral));
+
+class GenerateTest2 : public testing::TestWithParam<std::string> {};
+
+const std::vector<std::string> prefix{"u", "u8", "U", "L"};
+
+TEST_P(GenerateTest2, CharLitteral_prefix) {
+    std::string s(GetParam());
+    s += "'a'";
+    Lexer l(s);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), GetParam());
     EXPECT_EQ(t.lex(), "a");
     EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }
 
-TEST_F(LexerTest, CharLitteral_multi) {
-    Lexer l("'ab';");
+TEST_P(GenerateTest2, StringLitteral_prefix) {
+    std::string s(GetParam());
+    s += "\"a\"";
+    Lexer l(s);
     Token t(l.next());
+    EXPECT_EQ(t.prefix(), GetParam());
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.type(), Token::Type::StringLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_P(GenerateTest2, StringLitteral_raw_prefix) {
+    std::string s(GetParam());
+    s += "R\"cee(ab)cee\";";
+    Lexer l(s);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), GetParam());
     EXPECT_EQ(t.lex(), "ab");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_TRUE(t.raw());
+    EXPECT_EQ(t.type(), Token::Type::StringLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }
 
-TEST_F(LexerTest, CharLitteral_new_line) {
-    Lexer l(R"('\n';)");
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), R"(\n)");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_hexa) {
-    Lexer l(R"(='\x7m';)");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), R"(\x7m)");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_hexa_multiple) {
-    Lexer l(R"(='\x41m';)");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), R"(\x41m)");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_octal) {
-    Lexer l(R"(='\7m';)");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), R"(\7m)");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_octal_multiple) {
-    Lexer l(R"(='\100m';)");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), R"(\100m)");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_u) {
-    Lexer l(R"(='\u0436m';)");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), R"(\u0436m)");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_U) {
-    Lexer l(R"(='\U0001F996m';)");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.lex(), R"(\U0001F996m)");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_prefix_u) {
-    Lexer l("=u'a';");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.prefix(), "u");
-    EXPECT_EQ(t.lex(), "a");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_prefix_u8) {
-    Lexer l("=u8'a';");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.prefix(), "u8");
-    EXPECT_EQ(t.lex(), "a");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_prefix_U) {
-    Lexer l("=U'a';");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.prefix(), "U");
-    EXPECT_EQ(t.lex(), "a");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
-
-TEST_F(LexerTest, CharLitteral_prefix_L) {
-    Lexer l("=L'a';");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    Token t(l.next());
-    EXPECT_EQ(t.prefix(), "L");
-    EXPECT_EQ(t.lex(), "a");
-    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
-    EXPECT_EQ(l.next().type(), Token::Type::End);
-}
+INSTANTIATE_TEST_SUITE_P(prefix, GenerateTest2, testing::ValuesIn(prefix));
 
 TEST_F(LexerTest, CharLitteral_prefix_other) {
     Lexer l("=d'a';");
-    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
     Token t(l.next());
     EXPECT_EQ(t.prefix(), "");
     EXPECT_EQ(t.lex(), "a");
     EXPECT_EQ(t.type(), Token::Type::CharLitteral);
-    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+class GenerateTest3 : public testing::TestWithParam<std::string> {};
+
+const std::vector<std::string> prefix_id{"ua", "u8b", "Lc", "Ud", "Re", "uRa", "u8Rb", "LRc", "URd"};
+
+TEST_P(GenerateTest3, prefix_id) {
+    Lexer l(GetParam());
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), "");
+    EXPECT_EQ(t.lex(), GetParam());
+    EXPECT_FALSE(t.raw());
+    EXPECT_EQ(t.type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+INSTANTIATE_TEST_SUITE_P(prefix_id, GenerateTest3, testing::ValuesIn(prefix_id));
+
+class GenerateTest4 : public testing::TestWithParam<std::string> {};
+
+const std::vector<std::string> raw_delim{"a", ")a", "d)cee"};
+
+TEST_P(GenerateTest4, StringLitteral_raw_delim) {
+    std::string s;
+    s = "=R\"cee(" + GetParam() + ")cee\";";
+    Lexer l(s);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), "");
+    EXPECT_EQ(t.lex(), GetParam());
+    EXPECT_TRUE(t.raw());
+    EXPECT_EQ(t.type(), Token::Type::StringLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+INSTANTIATE_TEST_SUITE_P(raw_delim, GenerateTest4, testing::ValuesIn(raw_delim));
+
+TEST_F(LexerTest, StringLitteral_raw) {
+    Lexer l("=R\"(a)\";");
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), "");
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_TRUE(t.raw());
+    EXPECT_EQ(t.type(), Token::Type::StringLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }

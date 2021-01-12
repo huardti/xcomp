@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <cassert>
 #include <limits>
 #include <set>
+#include <vector>
 
 #include "lexer.hpp"
 
@@ -13,146 +15,63 @@ static bool is_non_digit(char c) noexcept {
 }
 
 static bool is_identifier_char(char c) noexcept { return is_digit(c) || is_non_digit(c); }
+
+static bool is_quote(char c) { return c == '\'' || c == '"'; }
+
 Token Lexer::next() noexcept {
     char c = peek();
     switch (c) {
     case '\0':
-        return Token(Token::Type::End, m_s.substr(m_beg, 1));
-    default:
-        std::cout << "unknow char" << c << std::endl;
-        return atom(Token::Type::Unexpected);
+        return atom(Token::Type::End);
+    case '\\':
+        error("stray '\\' in program");
+    case 'u':
+        if (is_quote(peek(1)) || (peek(1) == 'R' && peek(2) == '"') || (peek(1) == '8' && is_quote(peek(2))) ||
+            (peek(1) == '8' && peek(2) == 'R' && peek(3) == '"')) {
+            return prefix();
+        }
+        return identifier();
+    case 'U':
+    case 'L':
+        if (is_quote(peek(1)) || (peek(1) == 'R' && peek(2) == '"')) {
+            return prefix();
+        }
+        return identifier();
+    case 'R':
+        if (peek(1) == '"') {
+            return raw_string();
+        }
+        return identifier();
     case ' ':
-        return atom(Token::Type::Space);
+    case '\f':
+    case '\v':
     case '\t':
-        return atom(Token::Type::Tab);
+        return atom(Token::Type::Space);
     case '\n':
         return atom(Token::Type::Newline);
-    case 'u':
-        if (peek(1) == '\'') {
-            return prefix();
-        } else if (peek(1) == '8' && peek(2) == '\'') {
-            return prefix();
-        } else {
-            return identifier();
-        }
-    case 'U':
-        if (peek(1) == '\'') {
-            return prefix();
-        } else {
-            return identifier();
-        }
-    case 'L':
-        if (peek(1) == '\'') {
-            return prefix();
-        } else {
-            return identifier();
-        }
-    case 'a':
-    case 'b':
-    case 'c':
-    case 'd':
-    case 'e':
-    case 'f':
-    case 'g':
-    case 'h':
-    case 'i':
-    case 'j':
-    case 'k':
-    case 'l':
-    case 'm':
-    case 'n':
-    case 'o':
-    case 'p':
-    case 'q':
-    case 'r':
-    case 's':
-    case 't':
-    case 'v':
-    case 'w':
-    case 'x':
-    case 'y':
-    case 'z':
-    case 'A':
-    case 'B':
-    case 'C':
-    case 'D':
-    case 'E':
-    case 'F':
-    case 'G':
-    case 'H':
-    case 'I':
-    case 'J':
-    case 'K':
-    case 'M':
-    case 'N':
-    case 'O':
-    case 'P':
-    case 'Q':
-    case 'R':
-    case 'S':
-    case 'T':
-    case 'V':
-    case 'W':
-    case 'X':
-    case 'Y':
-    case 'Z':
-        return identifier();
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-        return number();
-    case '(':
-        return atom(Token::Type::LeftParen);
-    case ')':
-        return atom(Token::Type::RightParen);
-    case '[':
-        return atom(Token::Type::LeftSquare);
-    case ']':
-        return atom(Token::Type::RightSquare);
-    case '{':
-        return atom(Token::Type::LeftCurly);
-    case '}':
-        return atom(Token::Type::RightCurly);
-    case '<':
-        return atom(Token::Type::LessThan);
-    case '>':
-        return atom(Token::Type::GreaterThan);
-    case '=':
-        return atom(Token::Type::Equal);
-    case '+':
-        return atom(Token::Type::Plus);
-    case '-':
-        return atom(Token::Type::Minus);
-    case '*':
-        return atom(Token::Type::Asterisk);
-    case '/':
-        return atom(Token::Type::Slash);
-    case '\\':
-        return atom(Token::Type::BackSlash);
-    case '#':
-        return atom(Token::Type::Hash);
-    case '.':
-        return atom(Token::Type::Dot);
-    case ',':
-        return atom(Token::Type::Comma);
-    case ':':
-        return atom(Token::Type::Colon);
-    case ';':
-        return atom(Token::Type::Semicolon);
-    case '\'':
-        return charLitteral();
-    case '"':
-        return atom(Token::Type::DoubleQuote);
-    case '|':
-        return atom(Token::Type::Pipe);
+    default:
+        break; // continue the function
     }
+
+    if (is_quote(c)) {
+        return get_litteral();
+    }
+
+    if (is_non_digit(c)) {
+        return identifier();
+    }
+
+    if (is_digit(c)) {
+        return number();
+    }
+
+    constexpr std::string_view special("{}[]#()<>%:;.?*+-/^&|~!=,\\\"'");
+    if (special.find(c) != std::string::npos) {
+        return atom(Token::Type::OpOrPunctuator);
+    }
+
+    warning("unknown char ", c);
+    return atom(Token::Type::Unexpected);
 }
 
 static constexpr std::string_view basic_source_character("abcdefghijklmnopqrstuvwxyz"
@@ -225,30 +144,42 @@ std::string Lexer::escape_sequence() {
 Token Lexer::prefix() {
     char c = get();
     if (c == 'u' && peek() == '8') {
-        if (peek(1) != '\'') {
-            assert(0); // bad prefix
+        get(); // '8'
+        assert(is_quote(peek()) || (peek() == 'R' && peek(1) == '"'));
+
+        Token t(Token::Type::Unexpected);
+        if (peek() == 'R') {
+            t = raw_string();
+        } else {
+            t = get_litteral();
         }
-        get();
-        Token t(charLitteral());
         t.prefix("u8");
         return t;
     }
 
     std::set<char> prefix{'u', 'U', 'L'};
-    if (prefix.count(c) != 0 && peek() == '\'') {
-        Token t(charLitteral());
+    assert(prefix.count(c) != 0);
+
+    if (peek() == 'R') {
+        assert(peek(1) == '"');
+        Token t(raw_string());
         t.prefix(std::string(1, c));
         return t;
     }
-    assert(0); // bad prefix
+    assert(is_quote(peek()));
+
+    Token t(get_litteral());
+    t.prefix(std::string(1, c));
+    return t;
 }
 
-Token Lexer::charLitteral() {
-    assert(get() == '\'');
+Token Lexer::get_litteral() {
+    char q = get();
+    assert(is_quote(q));
     std::string ch;
 
     char c = peek();
-    while (c != '\'' && c != '\n' && basic_source_character.find(c) != std::string::npos) {
+    while (c != q && c != '\n' && basic_source_character.find(c) != std::string::npos) {
         if (c == '\\') {
             ch += escape_sequence();
         } else {
@@ -257,11 +188,86 @@ Token Lexer::charLitteral() {
         c = peek();
     }
 
-    if (get() != '\'') {
-        std::cerr << "Unexpected char in char litteral, c=`" << c << "'=0x" << std::hex << static_cast<int>(c) << std::endl;
-        assert(0);
+    if (get() != q) {
+        error("Unexpected char in char|string litteral, c=`", c, "'=0x", std::hex, static_cast<int>(c));
     }
-    return Token(Token::Type::CharLitteral, ch);
+
+    if (q == '\'') {
+        return Token(Token::Type::CharLitteral, ch);
+    } else {
+        return Token(Token::Type::StringLitteral, ch);
+    }
+}
+
+/**
+ * https://timsong-cpp.github.io/cppwp/lex#nt:d-char
+ */
+static bool is_d_char(char c) {
+    constexpr std::string_view except(" ()\\\t\v\f\n");
+    return basic_source_character.find(c) != std::string::npos && except.find(c) == std::string::npos;
+}
+
+bool Lexer::is_r_char(char c, const std::string &d) const {
+    if (basic_source_character.find(c) == std::string::npos) {
+        return false;
+    }
+    if (c != ')') {
+        return true;
+    }
+
+    std::string d2;
+    size_t i(1);
+    while (size(d2) < size(d)) {
+        d2 += peek(i);
+        ++i;
+    }
+    if (d2 != d) {
+        return true;
+    }
+    return peek(i) != '"';
+}
+
+#define D_CHAR_SIZE_MAX 16
+
+Token Lexer::raw_string() {
+    char tmp = get();
+    assert(tmp == 'R');
+    tmp = get();
+    assert(tmp == '"');
+
+    std::string d;
+    while (size(d) < D_CHAR_SIZE_MAX && is_d_char(peek())) {
+        d += get();
+    }
+
+    if (size(d) >= D_CHAR_SIZE_MAX) {
+        error("raw string delimiter longer than ", D_CHAR_SIZE_MAX, " characters");
+    }
+    if (size(d) > 0 && peek() != '(') {
+        error("invalid '", peek(), "' in raw string delimiter");
+    }
+    get(); // '('
+
+    std::string r;
+    while (is_r_char(peek(), d)) {
+        r += get();
+    }
+
+    if (get() != ')') {
+        error("raw string missing terminating parenthese or bad delimiter");
+    }
+
+    std::string d2;
+    while (size(d2) < size(d)) {
+        d2 += get();
+    }
+    assert(d2 == d);
+    tmp = get();
+    assert(tmp == '"');
+
+    Token t(Token::Type::StringLitteral, r);
+    t.raw(true);
+    return t;
 }
 
 Token Lexer::identifier() noexcept {
@@ -281,10 +287,7 @@ Token Lexer::number() noexcept {
 }
 
 std::ostream &operator<<(std::ostream &os, const Token::Type &kind) {
-    static const char *const names[]{
-        "Number",      "Identifier", "LeftParen",  "RightParen",   "LeftSquare",  "RightSquare",    "LeftCurly",     "RightCurly", "LessThan",
-        "GreaterThan", "Equal",      "Plus",       "Minus",        "Asterisk",    "Slash",          "backslash",     "Hash",       "Dot",
-        "Comma",       "Colon",      "Semicolon",  "SingleQuote",  "DoubleQuote", "Comment",        "Pipe",          "End",        "Space",
-        "tab",         "newLine",    "Unexpected", "CharLitteral", "DoubleHash",  "OpOrPunctuator", "StringLitteral"};
-    return os << names[static_cast<int>(kind)];
+    const std::vector<std::string> names{"CharLitteral",          "End",   "Identifier",     "Newline",   "Number", "OpOrPunctuator",
+                                         "PreprocessingOperator", "Space", "StringLitteral", "Unexpected"};
+    return os << names[static_cast<size_t>(kind)];
 }

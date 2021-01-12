@@ -9,40 +9,16 @@
 class Token {
   public:
     enum class Type {
-        Number,
-        Identifier,
-        LeftParen,
-        RightParen,
-        LeftSquare,
-        RightSquare,
-        LeftCurly,
-        RightCurly,
-        LessThan,
-        GreaterThan,
-        Equal,
-        Plus,
-        Minus,
-        Asterisk,
-        Slash,
-        BackSlash,
-        Hash,
-        Dot,
-        Comma,
-        Colon,
-        Semicolon,
-        SingleQuote,
-        DoubleQuote,
-        Comment,
-        Pipe,
-        End,
-        Space,
-        Tab,
-        Newline,
-        Unexpected,
         CharLitteral,
-        DoubleHash,
+        End,
+        Identifier,
+        Newline,
+        Number,
         OpOrPunctuator,
-        StringLitteral
+        PreprocessingOperator,
+        Space,
+        StringLitteral,
+        Unexpected,
     };
 
     explicit Token(Type t) noexcept : m_type{t} {}
@@ -57,6 +33,9 @@ class Token {
     std::string prefix() const noexcept { return m_prefix; }
     void prefix(std::string prefix) noexcept { m_prefix = std::move(prefix); }
 
+    bool raw() const noexcept { return m_raw; }
+    void raw(bool raw) noexcept { m_raw = raw; }
+
     bool is(Type t) const noexcept { return m_type == t; }
 
     template <typename... T> bool is_one_of(T... t) const noexcept { return (is(t) || ...); }
@@ -65,6 +44,7 @@ class Token {
     Type m_type;
     std::string m_lex;
     std::string m_prefix = "";
+    bool m_raw = false;
 };
 
 std::ostream &operator<<(std::ostream &os, const Token::Type &kind);
@@ -87,9 +67,19 @@ class Lexer {
     Token prefix();
 
     /**
-     *  Read and return a CharLitteral with it content
+     *  Read and return a CharLitteral or a StringLitteral (not raw) with it content
      */
-    Token charLitteral();
+    Token get_litteral();
+
+    /**
+     * https://timsong-cpp.github.io/cppwp/lex#nt:r-char
+     */
+    bool is_r_char(char c, const std::string &d) const;
+
+    /**
+     * Read and return a StringLitteral which is a raw string
+     */
+    Token raw_string();
     Token identifier() noexcept;
     Token number() noexcept;
     Token atom(Token::Type t) noexcept { return Token(t, m_s.substr(m_beg++, 1)); }
