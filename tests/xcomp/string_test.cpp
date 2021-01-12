@@ -79,3 +79,39 @@ TEST_P(GenerateTest3, StringLitteral_prefix) {
 }
 
 INSTANTIATE_TEST_SUITE_P(prefix2, GenerateTest3, testing::ValuesIn(prefix2));
+
+class Concat_stringTest : public ::testing::Test {};
+
+TEST_F(Concat_stringTest, no_prefix) {
+    Token t1(Token::Type::StringLitteral, "abc");
+    Token t2(Token::Type::StringLitteral, "x");
+    EXPECT_EQ(concat_string(t1, t2).lex(), "abcx");
+}
+
+TEST_F(Concat_stringTest, prefix_first) {
+    Token t1(Token::Type::StringLitteral, "a");
+    t1.prefix("u");
+    Token t2(Token::Type::StringLitteral, "b");
+    Token t(concat_string(t1, t2));
+    EXPECT_EQ(t.lex(), "ab");
+    EXPECT_EQ(t.prefix(), "u");
+}
+
+TEST_F(Concat_stringTest, prefix_second) {
+    Token t1(Token::Type::StringLitteral, "a");
+    Token t2(Token::Type::StringLitteral, "b");
+    t2.prefix("L");
+    Token t(concat_string(t1, t2));
+    EXPECT_EQ(t.lex(), "ab");
+    EXPECT_EQ(t.prefix(), "L");
+}
+
+using Concat_stringDeathTest = Concat_stringTest;
+
+TEST_F(Concat_stringDeathTest, prefix_different) {
+    Token t1(Token::Type::StringLitteral, "a");
+    t1.prefix("u8");
+    Token t2(Token::Type::StringLitteral, "b");
+    t2.prefix("L");
+    EXPECT_DEATH(concat_string(t1, t2), "unsupported non-standard concatenation of string literals");
+}

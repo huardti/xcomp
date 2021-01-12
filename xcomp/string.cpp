@@ -198,3 +198,24 @@ void convert_escape_sequence(Token &t) {
         return;
     }
 }
+
+/**
+ * Concat `t1` and `t2` and set prefix to `prefix`
+ */
+static Token concat(const Token &t1, const Token &t2, const std::string &prefix) {
+    Token t(t1);
+    t.lex(t.lex() + t2.lex());
+    t.prefix(prefix);
+    return t;
+}
+
+Token concat_string(const Token &t1, const Token &t2) {
+    assert(t1.is(Token::Type::StringLitteral) && t2.is(Token::Type::StringLitteral));
+    if (t1.prefix() == "") {
+        return concat(t1, t2, t2.prefix());
+    }
+    if (t1.prefix() == t2.prefix() || t2.prefix() == "") {
+        return concat(t1, t2, t1.prefix());
+    }
+    error("unsupported non-standard concatenation of string literals");
+}

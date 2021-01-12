@@ -10,4 +10,9 @@
  */
 void convert_escape_sequence(Token &t);
 
+/**
+ * Phase 6, concatenate string of `t1` and `t2`, fail if prefixes does not match
+ */
+Token concat_string(const Token &t1, const Token &t2);
+
 #endif
