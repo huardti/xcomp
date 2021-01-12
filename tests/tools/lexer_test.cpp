@@ -370,3 +370,51 @@ TEST_F(LexerTest, StringLitteral_raw) {
     EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }
+
+class GenerateTest00 : public testing::TestWithParam<std::string> {};
+
+const std::vector<std::string> processop{"#", "##", "%:", "%:%:"};
+
+TEST_P(GenerateTest00, PreprocessingOperator) {
+    Lexer l(GetParam());
+    Token t(l.next());
+    EXPECT_EQ(t.type(), Token::Type::PreprocessingOperator);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+INSTANTIATE_TEST_SUITE_P(processop, GenerateTest00, testing::ValuesIn(processop));
+
+class GenerateTest0 : public testing::TestWithParam<int> {};
+
+const std::vector<std::string> alterative{"<%", "%>", "<:", ":>", "%:", "%:%:",
+                                          /*"and", "bitor", "or", "xor", "compl", "bitand", "and_eq", "or_eq", "xor_eq", "not", "not_eq"*/};
+const std::vector<std::string> real{"{", "}", "[", "]", "#", "##",
+                                    /*"&&", "|", "||", "^", "~", "&", "&=", "|=", "^=", "!", "!="*/};
+
+TEST_P(GenerateTest0, alterative_token) {
+    size_t i = static_cast<size_t>(GetParam());
+    Lexer l(alterative[i]);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), real[i]);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+INSTANTIATE_TEST_SUITE_P(alterative, GenerateTest0, testing::Range(0, static_cast<int>(size(alterative))));
+
+class GenerateTest : public testing::TestWithParam<std::string> {};
+
+const std::vector<std::string> punctuators{
+    "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
+    "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
+    "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ",",
+};
+
+TEST_P(GenerateTest, OpOrPunctuator) {
+    Lexer l(GetParam());
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), GetParam());
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+INSTANTIATE_TEST_SUITE_P(punctuators, GenerateTest, testing::ValuesIn(punctuators));

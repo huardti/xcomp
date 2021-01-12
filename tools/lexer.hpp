@@ -82,7 +82,24 @@ class Lexer {
     Token raw_string();
     Token identifier() noexcept;
     Token number() noexcept;
-    Token atom(Token::Type t) noexcept { return Token(t, m_s.substr(m_beg++, 1)); }
+
+    /**
+     * If it's an alterative token, convert it
+     * https://timsong-cpp.github.io/cppwp/lex#digraph-2
+     */
+    Token get_operator(Token::Type t, const std::string &lex);
+
+    /**
+     * Read and return an OpOrPunctuator
+     */
+    Token handle_special() noexcept;
+
+    Token atom(Token::Type t) noexcept { return atom(t, std::string(1, peek())); }
+    Token atom(Token::Type t, const std::string &lex) noexcept {
+        Token tok(t, lex);
+        m_beg += size(lex);
+        return tok;
+    }
 
     char peek(size_t i = 0) const noexcept {
         if (m_beg + i > size(m_s)) {

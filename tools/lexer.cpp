@@ -67,11 +67,65 @@ Token Lexer::next() noexcept {
 
     constexpr std::string_view special("{}[]#()<>%:;.?*+-/^&|~!=,\\\"'");
     if (special.find(c) != std::string::npos) {
-        return atom(Token::Type::OpOrPunctuator);
+        return handle_special();
     }
 
     warning("unknown char ", c);
     return atom(Token::Type::Unexpected);
+}
+
+Token Lexer::get_operator(Token::Type t, const std::string &lex) {
+    const std::vector<std::string> alterative{"<%",  "%>",    "<:",     ":>",     "%:",    "%:%:",   "and", "bitor", "or",
+                                              "xor", "compl", "bitand", "and_eq", "or_eq", "xor_eq", "not", "not_eq"};
+    const std::vector<std::string> real{"{", "}", "[", "]", "#", "##", "&&", "|", "||", "^", "~", "&", "&=", "|=", "^=", "!", "!="};
+    Token tok(atom(t, lex));
+
+    auto it = std::find(alterative.begin(), alterative.end(), lex);
+    if (it != alterative.end()) {
+        size_t i = static_cast<size_t>(std::distance(alterative.begin(), it));
+        tok.lex(real[i]);
+    }
+    return tok;
+}
+
+static bool in_vector(const std::string &s, const std::vector<std::string> &v) { return std::find(v.begin(), v.end(), s) != v.end(); }
+
+Token Lexer::handle_special() noexcept {
+    std::string s(1, peek());
+    if (peek(1) != '\0') {
+        s += peek(1);
+        if (peek(2) != '\0') {
+            s += peek(2);
+            s += peek(3);
+        }
+    }
+
+    if (peek() == '<' && peek(1) == ':' && peek(2) == ':' && peek(3) != ':' && peek(3) != '>') {
+        return get_operator(Token::Type::OpOrPunctuator, s.substr(0, 1));
+    }
+
+    if (s.substr(0, 4) == "%:%:") {
+        return get_operator(Token::Type::PreprocessingOperator, s.substr(0, 4));
+    }
+
+    const std::vector<std::string> t3{"...", "->*", "<=>", "<<=", ">>="};
+    if (in_vector(s.substr(0, 3), t3)) {
+        return get_operator(Token::Type::OpOrPunctuator, s.substr(0, 3));
+    }
+
+    if (s.substr(0, 2) == "##" || s.substr(0, 2) == "%:") {
+        return get_operator(Token::Type::PreprocessingOperator, s.substr(0, 2));
+    }
+    const std::vector<std::string> t2{"<:", ":>", "<%", "%>", "::", ".*", "->", "+=", "-=", "*=", "/=", "%=", "^=",
+                                      "&=", "|=", "==", "!=", "<=", ">=", "&&", "||", "<<", ">>", "++", "--"};
+    if (in_vector(s.substr(0, 2), t2)) {
+        return get_operator(Token::Type::OpOrPunctuator, s.substr(0, 2));
+    }
+
+    if (s[0] == '#') {
+        return get_operator(Token::Type::PreprocessingOperator, s.substr(0, 1));
+    }
+    return get_operator(Token::Type::OpOrPunctuator, s.substr(0, 1));
 }
 
 static constexpr std::string_view basic_source_character("abcdefghijklmnopqrstuvwxyz"
