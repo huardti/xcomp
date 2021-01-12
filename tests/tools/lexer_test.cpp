@@ -288,15 +288,170 @@ TEST_F(LexerTest, next_label) {
     EXPECT_EQ(l.next().type(), Token::Type::Colon);
 }
 
-TEST_F(LexerTest, next_char) {
-    Lexer l("char a='B';");
+TEST_F(LexerTest, plus_plus) {
+    Lexer l("x+++++y");
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::Space);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "++");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    t = l.next();
+    EXPECT_EQ(t.lex(), "++");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
+    t = l.next();
+    EXPECT_EQ(t.lex(), "+");
+    EXPECT_EQ(t.type(), Token::Type::OpOrPunctuator);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, double_hash) {
+    Lexer l("a##b");
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::DoubleHash);
+    EXPECT_EQ(l.next().type(), Token::Type::Identifier);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral) {
+    Lexer l("='a';");
     EXPECT_EQ(l.next().type(), Token::Type::Equal);
-    EXPECT_EQ(l.next().type(), Token::Type::SingleQuote);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_multi) {
+    Lexer l("'ab';");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "ab");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_new_line) {
+    Lexer l(R"('\n';)");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), R"(\n)");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_hexa) {
+    Lexer l(R"(='\x7m';)");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), R"(\x7m)");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_hexa_multiple) {
+    Lexer l(R"(='\x41m';)");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), R"(\x41m)");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_octal) {
+    Lexer l(R"(='\7m';)");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), R"(\7m)");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_octal_multiple) {
+    Lexer l(R"(='\100m';)");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), R"(\100m)");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_u) {
+    Lexer l(R"(='\u0436m';)");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), R"(\u0436m)");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_U) {
+    Lexer l(R"(='\U0001F996m';)");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), R"(\U0001F996m)");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_prefix_u) {
+    Lexer l("=u'a';");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), "u");
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_prefix_u8) {
+    Lexer l("=u8'a';");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), "u8");
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_prefix_U) {
+    Lexer l("=U'a';");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), "U");
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_prefix_L) {
+    Lexer l("=L'a';");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), "L");
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(LexerTest, CharLitteral_prefix_other) {
+    Lexer l("=d'a';");
+    EXPECT_EQ(l.next().type(), Token::Type::Equal);
     EXPECT_EQ(l.next().type(), Token::Type::Identifier);
-    EXPECT_EQ(l.next().type(), Token::Type::SingleQuote);
+    Token t(l.next());
+    EXPECT_EQ(t.prefix(), "");
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.type(), Token::Type::CharLitteral);
     EXPECT_EQ(l.next().type(), Token::Type::Semicolon);
     EXPECT_EQ(l.next().type(), Token::Type::End);
 }

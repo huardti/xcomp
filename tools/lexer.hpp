@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 
+#include "error.hpp"
+
 class Token {
   public:
     enum class Type {
@@ -37,6 +39,10 @@ class Token {
         Tab,
         Newline,
         Unexpected,
+        CharLitteral,
+        DoubleHash,
+        OpOrPunctuator,
+        StringLitteral
     };
 
     Token(Type t) noexcept : m_type{t} {}
@@ -48,6 +54,9 @@ class Token {
     std::string lex() const noexcept { return m_lex; }
     void lex(std::string lex) noexcept { m_lex = std::move(lex); }
 
+    std::string prefix() const noexcept { return m_prefix; }
+    void prefix(std::string prefix) noexcept { m_prefix = std::move(prefix); }
+
     bool is(Type t) const noexcept { return m_type == t; }
     bool is_not(Type t) const noexcept { return m_type != t; }
     bool is_one_of(Type t1, Type t2) const noexcept { return is(t1) || is(t2); }
@@ -57,7 +66,10 @@ class Token {
   private:
     Type m_type;
     std::string m_lex;
+    std::string m_prefix;
 };
+
+std::ostream &operator<<(std::ostream &os, const Token::Type &kind);
 
 class Lexer {
   public:
@@ -66,11 +78,30 @@ class Lexer {
     Token next() noexcept;
 
   private:
+    /**
+     * Read and return an escape sequence
+     */
+    std::string escape_sequence();
+
+    /**
+     * Read and return a string or char with its prefix
+     */
+    Token prefix();
+
+    /**
+     *  Read and return a CharLitteral with it content
+     */
+    Token charLitteral();
     Token identifier() noexcept;
     Token number() noexcept;
     Token atom(Token::Type t) noexcept { return Token(t, m_s.substr(m_beg++, 1)); }
 
-    char peek() const noexcept { return m_s[m_beg]; }
+    char peek(size_t i = 0) const noexcept {
+        if (m_beg + i > size(m_s)) {
+            error("Unexpected end of file");
+        }
+        return m_s[m_beg + i];
+    }
     char get() noexcept { return m_s[m_beg++]; }
 
     size_t m_beg = 0;
