@@ -4,95 +4,15 @@
 
 #include "lexer.hpp"
 
-bool is_digit(char c) noexcept {
-    switch (c) {
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-        return true;
-    default:
-        return false;
-    }
+static bool is_digit(char c) noexcept { return c >= '0' && c <= '9'; }
+
+static bool is_non_digit(char c) noexcept {
+    constexpr std::string_view id("abcdefghijklmnopqrstuvwxyz"
+                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ_");
+    return id.find(c) != std::string::npos;
 }
 
-bool is_identifier_char(char c) noexcept {
-    switch (c) {
-    case 'a':
-    case 'b':
-    case 'c':
-    case 'd':
-    case 'e':
-    case 'f':
-    case 'g':
-    case 'h':
-    case 'i':
-    case 'j':
-    case 'k':
-    case 'l':
-    case 'm':
-    case 'n':
-    case 'o':
-    case 'p':
-    case 'q':
-    case 'r':
-    case 's':
-    case 't':
-    case 'u':
-    case 'v':
-    case 'w':
-    case 'x':
-    case 'y':
-    case 'z':
-    case 'A':
-    case 'B':
-    case 'C':
-    case 'D':
-    case 'E':
-    case 'F':
-    case 'G':
-    case 'H':
-    case 'I':
-    case 'J':
-    case 'K':
-    case 'L':
-    case 'M':
-    case 'N':
-    case 'O':
-    case 'P':
-    case 'Q':
-    case 'R':
-    case 'S':
-    case 'T':
-    case 'U':
-    case 'V':
-    case 'W':
-    case 'X':
-    case 'Y':
-    case 'Z':
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-    case '_':
-        return true;
-    default:
-        return false;
-    }
-}
-
+static bool is_identifier_char(char c) noexcept { return is_digit(c) || is_non_digit(c); }
 Token Lexer::next() noexcept {
     char c = peek();
     switch (c) {
@@ -345,21 +265,19 @@ Token Lexer::charLitteral() {
 }
 
 Token Lexer::identifier() noexcept {
-    int start = m_beg;
-    std::string r;
-    get();
+    std::string s;
     while (is_identifier_char(peek())) {
-        get();
+        s += get();
     }
-    return Token(Token::Type::Identifier, m_s.substr(start, m_beg - start));
+    return Token(Token::Type::Identifier, s);
 }
 
 Token Lexer::number() noexcept {
-    int start = m_beg;
-    get();
-    while (is_digit(peek()))
-        get();
-    return Token(Token::Type::Number, m_s.substr(start, m_beg - start));
+    std::string s;
+    while (is_digit(peek())) {
+        s += get();
+    }
+    return Token(Token::Type::Number, s);
 }
 
 std::ostream &operator<<(std::ostream &os, const Token::Type &kind) {

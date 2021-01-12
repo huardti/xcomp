@@ -19,16 +19,6 @@ TEST_F(TokenTest, is_false) {
     EXPECT_FALSE(t.is(Token::Type::Space));
 }
 
-TEST_F(TokenTest, is_not_true) {
-    Token t(Token::Type::Number);
-    EXPECT_TRUE(t.is_not(Token::Type::Space));
-}
-
-TEST_F(TokenTest, is_not_false) {
-    Token t(Token::Type::Number);
-    EXPECT_FALSE(t.is_not(Token::Type::Number));
-}
-
 TEST_F(TokenTest, is_one_of_true) {
     Token t(Token::Type::Number);
     EXPECT_TRUE(t.is_one_of(Token::Type::Space, Token::Type::Number));
@@ -76,12 +66,7 @@ TEST_F(TokenTest, lex_setter) {
     EXPECT_EQ(t.lex(), "hello");
 }
 
-class LexerTest : public ::testing::Test {
-  protected:
-    void SetUp() override {}
-
-    void TearDown() override {}
-};
+class LexerTest : public ::testing::Test {};
 
 TEST_F(LexerTest, next) {
     Lexer l("a");

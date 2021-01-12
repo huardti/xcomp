@@ -1,5 +1,5 @@
-#ifndef _LEXER_HPP
-#define _LEXER_HPP
+#ifndef LEXER_HPP
+#define LEXER_HPP
 
 #include <iostream>
 #include <string>
@@ -45,7 +45,7 @@ class Token {
         StringLitteral
     };
 
-    Token(Type t) noexcept : m_type{t} {}
+    explicit Token(Type t) noexcept : m_type{t} {}
     Token(Type t, const std::string s) noexcept : m_type{t}, m_lex(s) {}
 
     Type type() const noexcept { return m_type; }
@@ -58,22 +58,20 @@ class Token {
     void prefix(std::string prefix) noexcept { m_prefix = std::move(prefix); }
 
     bool is(Type t) const noexcept { return m_type == t; }
-    bool is_not(Type t) const noexcept { return m_type != t; }
-    bool is_one_of(Type t1, Type t2) const noexcept { return is(t1) || is(t2); }
 
-    template <typename... Ts> bool is_one_of(Type k1, Type k2, Ts... ks) const noexcept { return is(k1) || is_one_of(k2, ks...); }
+    template <typename... T> bool is_one_of(T... t) const noexcept { return (is(t) || ...); }
 
   private:
     Type m_type;
     std::string m_lex;
-    std::string m_prefix;
+    std::string m_prefix = "";
 };
 
 std::ostream &operator<<(std::ostream &os, const Token::Type &kind);
 
 class Lexer {
   public:
-    Lexer(std::string s) noexcept : m_s(s) {}
+    explicit Lexer(std::string s) noexcept : m_s(s) {}
 
     Token next() noexcept;
 
@@ -108,4 +106,4 @@ class Lexer {
     std::string m_s;
 };
 
-#endif // !_LEXER_HPP
+#endif // !LEXER_HPP
