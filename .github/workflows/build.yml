@@ -35,7 +35,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: jwlawson/actions-setup-cmake@v1.4
+    - uses: jwlawson/actions-setup-cmake@v1
 
     - name: Build and tests
       run: |

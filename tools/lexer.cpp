@@ -24,7 +24,7 @@ Token Lexer::next() noexcept {
     case '\0':
         return atom(Token::Type::End);
     case '\\':
-        error("stray '\\' in program");
+        fatal("stray '\\' in program");
     case 'u':
         if (is_quote(peek(1)) || (peek(1) == 'R' && peek(2) == '"') || (peek(1) == '8' && is_quote(peek(2))) ||
             (peek(1) == '8' && peek(2) == 'R' && peek(3) == '"')) {
@@ -161,7 +161,7 @@ std::string Lexer::escape_sequence() {
         }
 
         if (size(s) != 4 + 2) {
-            error("incomplete universal character name ", s);
+            fatal("incomplete universal character name ", s);
         }
         return s;
     }
@@ -173,7 +173,7 @@ std::string Lexer::escape_sequence() {
         }
 
         if (size(s) != 8 + 2) {
-            error("incomplete universal character name ", s);
+            fatal("incomplete universal character name ", s);
         }
         return s;
     }
@@ -192,7 +192,7 @@ std::string Lexer::escape_sequence() {
         s += c;
         return s;
     }
-    error("bad escape sequence");
+    fatal("bad escape sequence");
 }
 
 Token Lexer::prefix() {
@@ -243,7 +243,7 @@ Token Lexer::get_litteral() {
     }
 
     if (get() != q) {
-        error("Unexpected char in char|string litteral, c=`", c, "'=0x", std::hex, static_cast<int>(c));
+        fatal("Unexpected char in char|string litteral, c=`", c, "'=0x", std::hex, static_cast<int>(c));
     }
 
     if (q == '\'') {
@@ -295,10 +295,10 @@ Token Lexer::raw_string() {
     }
 
     if (size(d) >= D_CHAR_SIZE_MAX) {
-        error("raw string delimiter longer than ", D_CHAR_SIZE_MAX, " characters");
+        fatal("raw string delimiter longer than ", D_CHAR_SIZE_MAX, " characters");
     }
     if (size(d) > 0 && peek() != '(') {
-        error("invalid '", peek(), "' in raw string delimiter");
+        fatal("invalid '", peek(), "' in raw string delimiter");
     }
     get(); // '('
 
@@ -308,7 +308,7 @@ Token Lexer::raw_string() {
     }
 
     if (get() != ')') {
-        error("raw string missing terminating parenthese or bad delimiter");
+        fatal("raw string missing terminating parenthese or bad delimiter");
     }
 
     std::string d2;

@@ -103,7 +103,7 @@ class Lexer {
 
     char peek(size_t i = 0) const noexcept {
         if (m_beg + i > size(m_s)) {
-            error("Unexpected end of file");
+            fatal("Unexpected end of file");
         }
         return m_s[m_beg + i];
     }

@@ -20,7 +20,7 @@ template <typename... T> [[noreturn]] void fatal(T... t) {
 /**
  * Print args to stderr
  */
-template <typename... T> [[noreturn]] void error(T... t) {
+template <typename... T> void error(T... t) {
     std::cerr << red << "error: " << normal;
     (std::cerr << ... << t);
     std::cerr << std::endl;
