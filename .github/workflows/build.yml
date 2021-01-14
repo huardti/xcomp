@@ -43,7 +43,7 @@ jobs:
         cd build
         CXX=${{ matrix.cxx }} cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} ..
         cmake --build .
-        ctest
+        ctest --output-on-failure
 
     - name: Coverage
       if: ${{ matrix.coverage }}
