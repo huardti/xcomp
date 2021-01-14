@@ -4,7 +4,8 @@
 #include <iostream>
 #include <sstream> 
 
-#include "debug.hpp"
+#include "error.hpp"
+
 File::File(){
     m_fd = nullptr;
     source.clear();
@@ -20,7 +21,7 @@ bool File::read(){
 
     f.open(m_fd);
     if (!f.is_open()){
-        ERROR(m_fd, "can't open file")
+        ERROR(m_fd, 0,"can't open file")
         return false;
     }
     std::stringstream buffer;
@@ -33,7 +34,7 @@ bool File::write(){
     std::ofstream f;
     f.open(m_fd);
     if (!f.is_open()){
-        ERROR(m_fd, "can't open file")
+        ERROR(m_fd, 0, "can't open file")
         return false;
     }
     f.write(source.c_str(), source.size()); //need test

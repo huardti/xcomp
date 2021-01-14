@@ -1,11 +1,14 @@
 #include "preprocessor.hpp"
+#include "error.hpp"
 
 Preprocessor::Preprocessor(File source, File &out): m_in(source), m_out(out), m_state(Preprocessor::State::Base) {
     m_line = 1;
+    m_physical_line = 1;
     m_file_name = source.get_file_descriptor();
 }
 Preprocessor::Preprocessor(File source): m_in(source), m_state(Preprocessor::State::Base) {
     m_line = 1;
+    m_physical_line = 1;
     m_out.source.clear();
     m_file_name = source.get_file_descriptor();
 }
@@ -14,7 +17,7 @@ Preprocessor::Preprocessor(File source): m_in(source), m_state(Preprocessor::Sta
 void Preprocessor::run(){
     Lexer lex(m_in.source);
     std::string s;
-    m_out.source.append("# " + std::to_string(m_line) + " \"" + m_file_name + "\"\n");
+    put_file_info();
     for (Token token = lex.next(); not token.is_one_of(Token::Type::End, Token::Type::Unexpected); token = lex.next()) {
         /*
         m_out.source.append(out(token));
@@ -23,6 +26,7 @@ void Preprocessor::run(){
         */
         if (token.type() == Token::Type::Newline) {  // always output newline to conserve line number of the file
             m_line++;
+            m_physical_line++;
             m_out.source.append("\n");
         }
         /* state machine to find / or # */
@@ -76,6 +80,31 @@ void Preprocessor::run(){
                 m_state = State::C_comment_start;
             }
             break;
+
+
+        case State::hash:
+            if (token.type() == Token::Type::Identifier) {
+                if (token.lex() == "line") {
+                    m_state = State::Line;
+                }
+                else {
+                    ERROR(m_in.get_file_descriptor(), m_line,"unknow preprocessor directive")
+                }
+            }
+            break;
+        case State::Line:
+            if(token.type() == Token::Type::Space || token.type() == Token::Type::Tab) {
+                break;
+            }
+            if (token.type() == Token::Type::Number) {
+                m_line = stoi(token.lex());
+                put_file_info();
+            }
+            else {
+                ERROR(m_in.get_file_descriptor(), m_line, "bad uasge of #line preprocessor");
+            }
+            break;
+
         default:
             m_state = State::Base;
             break;
@@ -173,3 +202,8 @@ if (token.type() == Token::Type::Newline) {  // always output newline to conserv
 }
 
 #endif
+
+
+void Preprocessor::put_file_info(){
+    m_out.source.append("# " + std::to_string(m_line) + " \"" + m_file_name + "\"\n");
+}

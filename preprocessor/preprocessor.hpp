@@ -4,6 +4,21 @@
 #include "lexer.hpp"
 #include "file_manager.hpp"
 
+#include <map>
+
+class defined
+{
+public:
+    defined();
+    ~defined();
+
+    static void define();
+    static  void undef();
+
+protected:
+    static std::map<std::string, std::string> def_tab;
+    
+};
 class Preprocessor
 {
 public:
@@ -27,12 +42,15 @@ public:
 
     void run();
 
+    void put_file_info();
+
 protected:
     File m_in;
     File m_out;
     State m_state;
 
     size_t m_line;
+    size_t m_physical_line;
     std::string m_file_name;
 
 private:
