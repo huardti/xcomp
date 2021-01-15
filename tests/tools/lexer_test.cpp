@@ -386,10 +386,9 @@ INSTANTIATE_TEST_SUITE_P(processop, GenerateTest00, testing::ValuesIn(processop)
 
 class GenerateTest0 : public testing::TestWithParam<int> {};
 
-const std::vector<std::string> alterative{"<%", "%>", "<:", ":>", "%:", "%:%:",
-                                          /*"and", "bitor", "or", "xor", "compl", "bitand", "and_eq", "or_eq", "xor_eq", "not", "not_eq"*/};
-const std::vector<std::string> real{"{", "}", "[", "]", "#", "##",
-                                    /*"&&", "|", "||", "^", "~", "&", "&=", "|=", "^=", "!", "!="*/};
+const std::vector<std::string> alterative{"<%",  "%>",    "<:",     ":>",     "%:",    "%:%:",   "and", "bitor", "or",
+                                          "xor", "compl", "bitand", "and_eq", "or_eq", "xor_eq", "not", "not_eq"};
+const std::vector<std::string> real{"{", "}", "[", "]", "#", "##", "&&", "|", "||", "^", "~", "&", "&=", "|=", "^=", "!", "!="};
 
 TEST_P(GenerateTest0, alterative_token) {
     size_t i = static_cast<size_t>(GetParam());

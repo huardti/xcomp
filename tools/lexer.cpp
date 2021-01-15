@@ -326,10 +326,17 @@ Token Lexer::raw_string() {
 
 Token Lexer::identifier() noexcept {
     std::string s;
-    while (is_identifier_char(peek())) {
-        s += get();
+    size_t i = 0;
+    while (is_identifier_char(peek(i))) {
+        s += peek(i);
+        i++;
     }
-    return Token(Token::Type::Identifier, s);
+
+    const std::vector<std::string> op{"and", "bitor", "or", "xor", "compl", "bitand", "and_eq", "or_eq", "xor_eq", "not", "not_eq"};
+    if (in_vector(s, op)) {
+        return get_operator(Token::Type::OpOrPunctuator, s);
+    }
+    return atom(Token::Type::Identifier, s);
 }
 
 Token Lexer::number() noexcept {
