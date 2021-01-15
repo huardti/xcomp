@@ -417,3 +417,76 @@ TEST_P(GenerateTest, OpOrPunctuator) {
 }
 
 INSTANTIATE_TEST_SUITE_P(punctuators, GenerateTest, testing::ValuesIn(punctuators));
+
+class UserDefinedTest : public ::testing::Test {};
+
+TEST_F(UserDefinedTest, char_basic) {
+    Lexer l("'a'x");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.suffix(), "x");
+    EXPECT_EQ(t.type(), Token::Type::UserDefinedCharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(UserDefinedTest, char_prefix) {
+    Lexer l("L'ab'x");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "ab");
+    EXPECT_EQ(t.prefix(), "L");
+    EXPECT_EQ(t.suffix(), "x");
+    EXPECT_EQ(t.type(), Token::Type::UserDefinedCharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(UserDefinedTest, char_suffix_multichars) {
+    Lexer l("u8'ab's_s ");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "ab");
+    EXPECT_EQ(t.prefix(), "u8");
+    EXPECT_EQ(t.suffix(), "s_s");
+    EXPECT_EQ(t.type(), Token::Type::UserDefinedCharLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Space);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(UserDefinedTest, string_basic) {
+    Lexer l("\"a\"x");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "a");
+    EXPECT_EQ(t.suffix(), "x");
+    EXPECT_EQ(t.type(), Token::Type::UserDefinedStringLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(UserDefinedTest, string_prefix) {
+    Lexer l("L\"ab\"x");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "ab");
+    EXPECT_EQ(t.prefix(), "L");
+    EXPECT_EQ(t.suffix(), "x");
+    EXPECT_EQ(t.type(), Token::Type::UserDefinedStringLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(UserDefinedTest, string_suffix_multichars) {
+    Lexer l("L\"ab\"_4s;");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "ab");
+    EXPECT_EQ(t.prefix(), "L");
+    EXPECT_EQ(t.suffix(), "_4s");
+    EXPECT_EQ(t.type(), Token::Type::UserDefinedStringLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::OpOrPunctuator);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}
+
+TEST_F(UserDefinedTest, string_suffix_multichars_raw) {
+    Lexer l("R\"(ab)\"s_s ");
+    Token t(l.next());
+    EXPECT_EQ(t.lex(), "ab");
+    EXPECT_TRUE(t.raw());
+    EXPECT_EQ(t.suffix(), "s_s");
+    EXPECT_EQ(t.type(), Token::Type::UserDefinedStringLitteral);
+    EXPECT_EQ(l.next().type(), Token::Type::Space);
+    EXPECT_EQ(l.next().type(), Token::Type::End);
+}

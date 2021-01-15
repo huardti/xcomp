@@ -19,6 +19,8 @@ class Token {
         Space,
         StringLitteral,
         Unexpected,
+        UserDefinedCharLitteral,
+        UserDefinedStringLitteral,
     };
 
     explicit Token(Type t) noexcept : m_type{t} {}
@@ -33,6 +35,9 @@ class Token {
     std::string prefix() const noexcept { return m_prefix; }
     void prefix(std::string prefix) noexcept { m_prefix = std::move(prefix); }
 
+    std::string suffix() const noexcept { return m_suffix; }
+    void suffix(std::string suffix) noexcept { m_suffix = std::move(suffix); }
+
     bool raw() const noexcept { return m_raw; }
     void raw(bool raw) noexcept { m_raw = raw; }
 
@@ -44,6 +49,7 @@ class Token {
     Type m_type;
     std::string m_lex;
     std::string m_prefix = "";
+    std::string m_suffix = "";
     bool m_raw = false;
 };
 

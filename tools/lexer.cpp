@@ -246,11 +246,19 @@ Token Lexer::get_litteral() {
         fatal("Unexpected char in char|string litteral, c=`", c, "'=0x", std::hex, static_cast<int>(c));
     }
 
+    if (is_identifier_char(peek())) {
+        Token t(Token::Type::UserDefinedStringLitteral, ch);
+        if (q == '\'') {
+            t.type(Token::Type::UserDefinedCharLitteral);
+        }
+        t.suffix(identifier().lex());
+        return t;
+    }
+
     if (q == '\'') {
         return Token(Token::Type::CharLitteral, ch);
-    } else {
-        return Token(Token::Type::StringLitteral, ch);
     }
+    return Token(Token::Type::StringLitteral, ch);
 }
 
 /**
@@ -275,10 +283,7 @@ bool Lexer::is_r_char(char c, const std::string &d) const {
         d2 += peek(i);
         ++i;
     }
-    if (d2 != d) {
-        return true;
-    }
-    return peek(i) != '"';
+    return d2 != d || peek(i) != '"';
 }
 
 #define D_CHAR_SIZE_MAX 16
@@ -319,6 +324,13 @@ Token Lexer::raw_string() {
     tmp = get();
     assert(tmp == '"');
 
+    if (is_identifier_char(peek())) {
+        Token t(Token::Type::UserDefinedStringLitteral, r);
+        t.suffix(identifier().lex());
+        t.raw(true);
+        return t;
+    }
+
     Token t(Token::Type::StringLitteral, r);
     t.raw(true);
     return t;
@@ -348,7 +360,17 @@ Token Lexer::number() noexcept {
 }
 
 std::ostream &operator<<(std::ostream &os, const Token::Type &kind) {
-    const std::vector<std::string> names{"CharLitteral",          "End",   "Identifier",     "Newline",   "Number", "OpOrPunctuator",
-                                         "PreprocessingOperator", "Space", "StringLitteral", "Unexpected"};
+    const std::vector<std::string> names{"CharLitteral",
+                                         "End",
+                                         "Identifier",
+                                         "Newline",
+                                         "Number",
+                                         "OpOrPunctuator",
+                                         "PreprocessingOperator",
+                                         "Space",
+                                         "StringLitteral",
+                                         "Unexpected",
+                                         "UserDefinedCharLitteral",
+                                         "UserDefinedStringLitteral"};
     return os << names[static_cast<size_t>(kind)];
 }
