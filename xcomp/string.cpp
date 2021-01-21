@@ -172,9 +172,29 @@ static std::string char_escape_sequence(const Token &t) {
     return c;
 }
 
+/**
+ * Convert escape sequence of a StringLitteral
+ */
+static std::string string_escape_sequence(const Token &t) {
+    assert(t.is(Token::Type::StringLitteral));
+    std::string out;
+    size_t i(0);
+
+    while (i < size(t.lex())) {
+        auto [c, n] = get_one_escape_sequence(t.lex().substr(i), t.prefix());
+        out += c;
+        i += n;
+    }
+    return out;
+}
+
 void convert_escape_sequence(Token &t) {
     if (t.is(Token::Type::CharLitteral)) {
         t.lex(char_escape_sequence(t));
+        return;
+    }
+    if (t.is(Token::Type::StringLitteral)) {
+        t.lex(string_escape_sequence(t));
         return;
     }
 }

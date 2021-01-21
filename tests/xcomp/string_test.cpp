@@ -58,3 +58,24 @@ TEST_P(GenerateDeathTest2, CharLitteral_custom) {
 }
 
 INSTANTIATE_TEST_SUITE_P(sequence, GenerateDeathTest2, testing::Range(0, static_cast<int>(size(sequence))));
+
+class GenerateTest3 : public testing::TestWithParam<std::string> {};
+
+const std::vector<std::string> prefix2{"", "u8", "u", "U", "L"};
+const std::vector<std::string> StringLitteral{"a",       "ab",      "A\\n",    "\\x7S",   "\\x41",       "\\7",   "\\100",     "\\u0024",
+                                              "\\u00A2", "\\u0939", "\\u20AC", "\\uD55C", "\\U00010348", "a\\nb", "a\\n\\x41k"};
+const std::vector<std::string> StringLitteral_real{
+    "a",    "ab",      "A\n", "\x7S", "\x41", "\7", "\100", "\x24", "\xC2\xA2", "\xE0\xA4\xB9", "\xE2\x82\xAC", "\xED\x95\x9C", "\xF0\x90\x8D\x88",
+    "a\nb", "a\n\x41k"};
+
+TEST_P(GenerateTest3, StringLitteral_prefix) {
+    assert(size(StringLitteral) == size(StringLitteral_real));
+    for (size_t i = 0; i < size(StringLitteral_real); ++i) {
+        Token t(Token::Type::StringLitteral, StringLitteral[i]);
+        t.prefix(GetParam());
+        convert_escape_sequence(t);
+        EXPECT_EQ(t.lex(), StringLitteral_real[i]);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(prefix2, GenerateTest3, testing::ValuesIn(prefix2));
